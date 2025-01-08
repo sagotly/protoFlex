@@ -1,0 +1,33 @@
+{
+  "servers": [
+    {
+      "name": "",
+      "ip": "",
+      "wanted_tunnels": "",
+      "tunnel_names": "b"
+    },
+    {
+      "name": "hi",
+      "ip": "293.834.324",
+      "wanted_tunnels": "isa",
+      "tunnel_names": "dsa"
+    }
+  ],
+  "right": [
+    {
+      "title": "we",
+      "description": "we",
+      "chosen_value": "Option B"
+    },
+    {
+      "title": "ldnf",
+      "description": "df",
+      "chosen_value": ""
+    },
+    {
+      "title": "rt",
+      "description": "",
+      "chosen_value": ""
+    }
+  ]
+}
