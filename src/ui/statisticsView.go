@@ -7,18 +7,17 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/widget"
-	"github.com/sagotly/protoFlex.git/src/system_scripts"
 )
 
 func (Ui *Ui) buildStatisticsView() (*fyne.Container, error) {
 	titleLabel := widget.NewLabel("Protoflex")
 	titleLabel.TextStyle.Bold = true
 
-	connections, err := system_scripts.GetActiveConnections()
+	executables, err := Ui.AddedExecutablesRepo.GetAllAddedExecutabless()
 	if err != nil {
 		log.Fatal("Failed to get active connections:", err)
 	}
-	activeConnections := widget.NewLabel(fmt.Sprintf("Active connections: %d", len(connections)))
+	addedExecutables := widget.NewLabel(fmt.Sprintf("Active connections: %d", len(executables)))
 
 	servers, err := Ui.ServerRepo.GetAllServers()
 	if err != nil {
@@ -31,7 +30,7 @@ func (Ui *Ui) buildStatisticsView() (*fyne.Container, error) {
 	middleCol := container.NewVBox(
 		titleLabel,
 		widget.NewSeparator(),
-		activeConnections,
+		addedExecutables,
 		numServers,
 	)
 

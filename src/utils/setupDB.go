@@ -28,16 +28,17 @@ func SetupDatabase(db *sql.DB) error {
 		return err
 	}
 
-	// Create the 'active_connections' table
-	activeConnectionsTable := `
-	CREATE TABLE IF NOT EXISTS active_connections (
+	// Create the 'AddedExecutables' table
+	AddedExecutablesTable := `
+	CREATE TABLE IF NOT EXISTS AddedExecutables (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    pid TEXT NOT NULL,
     tunnel_id INTEGER NOT NULL,
-    type_of_connection TEXT NOT NULL,
+		path TEXT NOT NULL,
+		arguments TEXT DEFAULT '',
+		active BOOLEAN DEFAULT FALSE,
     FOREIGN KEY (tunnel_id) REFERENCES tunnels(id) ON DELETE CASCADE
 	);`
-	if _, err := db.Exec(activeConnectionsTable); err != nil {
+	if _, err := db.Exec(AddedExecutablesTable); err != nil {
 		return err
 	}
 

@@ -7,13 +7,16 @@ import (
 )
 
 func isSubnetUnused(subnet string) (bool, error) {
-	// Check if the subnet is already in use using `ip route`
 	checkSubnetCmd := fmt.Sprintf("ip route show %s", subnet)
-	if _, err := runCommand(checkSubnetCmd); err == nil {
-		// Subnet is in use
-		return false, nil
+	output, err := runCommand(checkSubnetCmd)
+	if err != nil {
+		return false, fmt.Errorf("failed to run command: %w", err)
 	}
-	return true, nil
+	// Если вывод пустой, значит подсеть свободна
+	if strings.TrimSpace(output) == "" {
+		return true, nil
+	}
+	return false, nil
 }
 
 func findUnusedSubnet() (string, error) {
@@ -45,7 +48,11 @@ func detectExtInterface() (string, error) {
 }
 
 func runCommand(command string) (string, error) {
-	cmd := exec.Command("bash", "-c", command)
+	cmd := exec.Command("bash", "-c", "sudo "+command)
+	fmt.Println("Running command: ", cmd)
 	output, err := cmd.CombinedOutput()
-	return string(output), err
+	if err != nil {
+		return "", fmt.Errorf("command failed: %s, %w", string(output), err)
+	}
+	return string(output), nil
 }

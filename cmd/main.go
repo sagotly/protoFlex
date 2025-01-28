@@ -8,7 +8,8 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
 	_ "github.com/mattn/go-sqlite3"
-	enteties "github.com/sagotly/protoFlex.git/src/entities"
+	"github.com/sagotly/protoFlex.git/src/client"
+	"github.com/sagotly/protoFlex.git/src/controllers"
 	"github.com/sagotly/protoFlex.git/src/repo"
 	Ui "github.com/sagotly/protoFlex.git/src/ui"
 	"github.com/sagotly/protoFlex.git/src/utils"
@@ -28,36 +29,20 @@ func main() {
 		log.Fatalf("Error setting up database: %v", err)
 	}
 
-	//create server repo
 	serverRepo := repo.NewServerRepo(db)
-	err = serverRepo.CreateServer(enteties.Server{
-		Ip:         "1.2.3.4.",
-		Name:       "Server1",
-		TunnelList: `["tun0", "wg0"]`,
-	})
-	if err != nil {
-		log.Fatalf("Error creating server: %v", err)
-	}
-
-	serverInstance, err := serverRepo.GetServerById(1)
-	if err != nil {
-		log.Fatalf("Error getting server by id: %v", err)
-	}
-	//create tunnel repo
 	tunnelRepo := repo.NewTunnelRepo(db)
-	err = tunnelRepo.CreateTunnel(enteties.Tunnel{
-		ServerId:      serverInstance.Id,
-		InterfaceName: "tun0",
-	})
-	if err != nil {
-		log.Fatalf("Error creating tunnel: %v", err)
-	}
-	fmt.Println("Server: ", serverInstance)
+	addedExecutablesRepo := repo.NewAddedExecutablesRepo(db)
+
+	tokenClient := client.NewServerClient()
+
+	tokenController := controllers.NewTokenController(tokenClient)
+	serverViewController := controllers.NewServerViewController(tunnelRepo, serverRepo)
+	addedExecutablesController := controllers.NewAddedExcecutablesController(tunnelRepo, serverRepo, addedExecutablesRepo)
 
 	a := app.New()
 	w := a.NewWindow("Protoflex")
+	Ui := Ui.NewUI(w, tokenController, serverViewController, addedExecutablesController, serverRepo, tunnelRepo, addedExecutablesRepo)
 
-	Ui := Ui.NewUI(w, serverRepo, tunnelRepo)
 	mainContent, err := Ui.BuildUi()
 	if err != nil {
 		log.Fatalf("Error building UI: %v", err)
