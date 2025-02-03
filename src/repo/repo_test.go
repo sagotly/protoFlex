@@ -2,6 +2,7 @@ package repo_test
 
 import (
 	"database/sql"
+	"log"
 	"os"
 	"testing"
 
@@ -44,11 +45,11 @@ func (suite *RepoTestSuite) TestServerAndTunnelRepoIntegration() {
 		Name:       "Test Server",
 		TunnelList: "[]",
 	}
-	err := suite.ServerRepo.CreateServer(server)
+	id, err := suite.ServerRepo.CreateServer(server)
 	suite.Require().NoError(err)
 
 	// Fetch server to verify insertion
-	fetchedServer, err := suite.ServerRepo.GetServerById(1)
+	fetchedServer, err := suite.ServerRepo.GetServerById(id)
 	suite.Require().NoError(err)
 	suite.Equal(server.Name, fetchedServer.Name)
 
@@ -84,6 +85,31 @@ func (suite *RepoTestSuite) TestServerAndTunnelRepoIntegration() {
 
 }
 
+func (s *RepoTestSuite) TestGetTunnelByInterfaceName() {
+	// Insert a test server
+	server := enteties.Server{
+		Ip:         "9",
+		Name:       "Test Server",
+		TunnelList: "[]",
+	}
+	_, err := s.ServerRepo.CreateServer(server)
+	s.Require().NoError(err)
+	err = s.TunnelRepo.CreateTunnel(enteties.Tunnel{
+		ServerId:             9,
+		InterfaceName:        "wggg",
+		ConnectedConnections: `[]`,
+	})
+	s.Require().NoError(err)
+	_, exists, err := s.TunnelRepo.GetTunnelByInterfaceName("wggg")
+
+	if err != nil {
+		log.Println("Error creating server:", err)
+	} else if !exists {
+		log.Println("Error creating server: tunnel already exists")
+	}
+	log.Println(exists)
+
+}
 func TestRepoTestSuite(t *testing.T) {
 	suite.Run(t, new(RepoTestSuite))
 }

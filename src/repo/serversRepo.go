@@ -14,12 +14,16 @@ func NewServerRepo(db *sql.DB) *ServerRepo {
 	return &ServerRepo{db: db}
 }
 
-func (s *ServerRepo) CreateServer(server e.Server) error {
-	_, err := s.db.Exec("INSERT INTO servers (ip, name, tunnel_list) VALUES ($1, $2, $3)", server.Ip, server.Name, server.TunnelList)
+func (s *ServerRepo) CreateServer(server e.Server) (int64, error) {
+	result, err := s.db.Exec("INSERT INTO servers (ip, name, tunnel_list) VALUES ($1, $2, $3) RETURNING id", server.Ip, server.Name, server.TunnelList)
 	if err != nil {
-		return err
+		return 0, err
 	}
-	return nil
+	id, err := result.LastInsertId()
+	if err != nil {
+		return 0, err
+	}
+	return id, nil
 }
 
 func (s *ServerRepo) GetServerById(id int64) (e.Server, error) {

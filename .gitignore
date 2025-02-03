@@ -25,4 +25,4 @@ go.work.sum
 .env
 
 # Ignore a folder and all of its contents
-folder_to_ignore/
+zjunk/

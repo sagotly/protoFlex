@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <title>Servers & Executables</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      display: flex;
+      gap: 20px;
+    }
+
+    .column {
+      width: 45%;
+      padding: 10px;
+      border: 1px solid #ccc;
+      background: #f9f9f9;
+    }
+
+    .item {
+      padding: 8px;
+      margin: 6px 0;
+      border: 1px solid #ddd;
+      background: white;
+    }
+
+    .modal-backdrop {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.5);
+      display: none;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal {
+      background: white;
+      padding: 20px;
+      border-radius: 4px;
+      width: 300px;
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- Левая колонка (Серверы) -->
+  <div class="column">
+    <h2>Servers</h2>
+    <div id="servers-list"></div>
+    <button id="add-server-btn">+ Add Server</button>
+  </div>
+
+  <!-- Модалка "Добавить сервер (IP, порт, туннели)" -->
+  <div id="server-modal" class="modal-backdrop">
+    <div class="modal">
+      <h3>Add Server</h3>
+      <label>Name: <input type="text" id="server-name" /></label><br><br>
+      <label>IP: <input type="text" id="server-ip" /></label><br><br>
+      <label>Port: <input type="text" id="server-port" /></label><br><br>
+      <label>Tunnels: <input type="text" id="server-tunnels" /></label><br><br>
+      <button id="server-next">Next</button>
+      <button id="server-cancel">Cancel</button>
+    </div>
+  </div>
+
+  <div id="token-modal" class="modal-backdrop">
+    <div class="modal">
+      <h3>Enter Token</h3>
+      <input type="text" id="server-token" /><br><br>
+      <button id="token-confirm">Confirm</button>
+      <button id="token-cancel">Cancel</button>
+    </div>
+  </div>
+
+  <script>
+    const apiBase = "http://localhost:8080";
+    let serverData = {};
+
+    document.addEventListener("DOMContentLoaded", () => {
+      loadServers();
+
+      document.getElementById("add-server-btn").addEventListener("click", openServerModal);
+      document.getElementById("server-next").addEventListener("click", generateToken);
+      document.getElementById("token-confirm").addEventListener("click", validateToken);
+      document.getElementById("server-cancel").addEventListener("click", closeServerModal);
+
+      document.getElementById("token-confirm").addEventListener("click", validateToken);
+      document.getElementById("token-cancel").addEventListener("click", closeTokenModal);
+    });
+
+    function loadServers() {
+      fetch(apiBase + "/servers")
+        .then(res => res.json())
+        .then(data => {
+          const listDiv = document.getElementById("servers-list");
+          listDiv.innerHTML = "";
+          data.forEach(s => {
+            console.log(s);
+            const itemDiv = document.createElement("div");
+            itemDiv.className = "item";
+            itemDiv.innerHTML = `<strong>${s.Name}</strong><br>IP: ${s.Ip} | Tunnels: ${s.TunnelList}`;
+            listDiv.appendChild(itemDiv);
+          });
+        })
+        .catch(err => console.error("Error loading servers:", err));
+    }
+
+    function openServerModal() {
+      document.getElementById("server-modal").style.display = "flex";
+    }
+
+    function closeServerModal() {
+      document.getElementById("server-modal").style.display = "none";
+    }
+
+    function showTokenModal() {
+      document.getElementById("token-modal").style.display = "flex";
+    }
+
+    function closeTokenModal() {
+      document.getElementById("token-modal").style.display = "none";
+    }
+
+    function generateToken() {
+      serverData = {
+        name: document.getElementById("server-name").value,
+        ip: document.getElementById("server-ip").value,
+        port: document.getElementById("server-port").value,
+        "tunnel-list": document.getElementById("server-tunnels").value
+      };
+
+      fetch(`${apiBase}/connections/generate-token`, { method: "POST" })
+        .then(() => {
+          document.getElementById("server-modal").style.display = "none";
+          document.getElementById("token-modal").style.display = "flex";
+        });
+    }
+
+    function validateToken() {
+      const token = document.getElementById("server-token").value;
+
+      fetch(`${apiBase}/connections/validate-token`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token })
+      })
+        .then(res => {
+          if (res.status === 200) {
+            console.log("Token is valid");
+            return fetch(`${apiBase}/servers`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ ...serverData, token })
+            });
+          } else {
+            throw new Error("Invalid token");
+          }
+        })
+        .then(() => {
+          document.getElementById("token-modal").style.display = "none";
+          loadServers();
+        })
+        .catch(err => alert(err.message));
+    }
+  </script>
+
+</body>
+
+</html>

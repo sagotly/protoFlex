@@ -7,6 +7,9 @@ function getDirectoryTree(dir, prefix = '') {
   const entries = fs.readdirSync(dir, { withFileTypes: true });
 
   entries.forEach((entry, index) => {
+    if (entry.name.startsWith('.') || entry.name === 'zjunk') {
+      return;
+    }
     const isLast = index === entries.length - 1;
     const entryPath = path.join(dir, entry.name);
     const connector = isLast ? '└── ' : '├── ';
@@ -21,7 +24,7 @@ function getDirectoryTree(dir, prefix = '') {
 }
 
 // Указываем начальную директорию
-const startDirectory = path.resolve(__dirname);
+const startDirectory = path.resolve(__dirname + "/..");
 
 // Выводим файловую структуру проекта
 console.log(startDirectory);

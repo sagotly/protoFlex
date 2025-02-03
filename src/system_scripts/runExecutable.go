@@ -32,7 +32,7 @@ func runShellScript(namespace string, path string, args []string) error {
 	cmd := exec.Command("sudo", append([]string{"ip", "netns", "exec", namespace, "bash", path}, args...)...)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
-	return cmd.Run()
+	return cmd.Start() // Use Start() instead of Run() to not wait for the command to finish
 }
 
 // runBinary executes a binary with the provided arguments in a namespace.
@@ -43,7 +43,7 @@ func runBinary(namespace string, path string, args []string) error {
 	cmd := exec.Command("sudo", append([]string{"ip", "netns", "exec", namespace, path}, args...)...)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
-	return cmd.Run()
+	return cmd.Start() // Use Start() instead of Run() to not wait for the command to finish
 }
 
 // runDockerCompose executes Docker Compose with the specified YAML file in a namespace.

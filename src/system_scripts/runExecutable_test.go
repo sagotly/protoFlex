@@ -24,7 +24,7 @@ func (suite *RunExecutableTestSuite) SetupSuite() {
 	suite.tempDir = tempDir
 
 	// Simulate a namespace (replace with actual setup in real environment)
-	suite.namespace = "vpn_namespace"
+	suite.namespace = "wg0_namespace"
 
 	// Get the host IP
 	hostIPOutput := "2001:fb1:47:b1a6:a286:e769:6cc:d20"

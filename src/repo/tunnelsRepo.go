@@ -3,6 +3,7 @@ package repo
 import (
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	enteties "github.com/sagotly/protoFlex.git/src/entities"
@@ -37,14 +38,22 @@ func (t *TunnelRepo) GetTunnelById(id int64) (enteties.Tunnel, error) {
 	return tunnel, nil
 }
 
-// GetTunnelByInterfaceName is a function that retrieves a tunnel from the database by its interface name
-func (t *TunnelRepo) getTunnelByInterfaceName(name string) (enteties.Tunnel, error) {
+func (t *TunnelRepo) GetTunnelByInterfaceName(name string) (enteties.Tunnel, bool, error) {
 	var tunnel enteties.Tunnel
-	err := t.db.QueryRow("SELECT * FROM tunnels WHERE interface_name = $1", name).Scan(&tunnel.Id, &tunnel.ServerId, &tunnel.InterfaceName, &tunnel.ConnectedConnections)
+	err := t.db.QueryRow("SELECT * FROM tunnels WHERE interface_name = $1", name).
+		Scan(&tunnel.Id, &tunnel.ServerId, &tunnel.InterfaceName, &tunnel.ConnectedConnections)
+
 	if err != nil {
-		return tunnel, err
+		if errors.Is(err, sql.ErrNoRows) {
+			// Нет записей — возвращаем false
+			return tunnel, false, nil
+		}
+		// Ошибка запроса — возвращаем её
+		return tunnel, false, err
 	}
-	return tunnel, nil
+
+	// Запись найдена — возвращаем true
+	return tunnel, true, nil
 }
 
 // GetAllTunnels is a function that retrieves all tunnels from the database
@@ -68,7 +77,7 @@ func (t *TunnelRepo) GetAllTunnels() ([]enteties.Tunnel, error) {
 
 func (t *TunnelRepo) AddConnectionToTunnel(tunnelName string, connectionTuple string) error {
 	// Получение туннеля с использованием существующей функции
-	tunnel, err := t.getTunnelByInterfaceName(tunnelName)
+	tunnel, _, err := t.GetTunnelByInterfaceName(tunnelName)
 	if err != nil {
 		return fmt.Errorf("failed to fetch tunnel by ID: %w", err)
 	}

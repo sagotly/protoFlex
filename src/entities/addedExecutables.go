@@ -7,3 +7,15 @@ type AddedExecutable struct {
 	Arguments string `db:"arguments"`
 	Active    bool   `db:"active"`
 }
+
+type AddExecutableRequest struct {
+	Path      string `json:"path"`
+	Arguments string `json:"arguments"`
+	TunnelId  string `json:"tunnel_id"`
+}
+
+type ConnectExecutableRequest struct {
+	TunnelId  int64  `json:"tunnel_id"`
+	Path      string `json:"path"`
+	Arguments string `json:"arguments"`
+}

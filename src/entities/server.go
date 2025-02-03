@@ -6,3 +6,9 @@ type Server struct {
 	Ip         string `db:"ip"`
 	TunnelList string `db:"tunnel_list"`
 }
+
+type AddServerRequest struct {
+	Name       string `json:"name"`
+	Ip         string `json:"ip"`
+	TunnelList string `json:"tunnel_list"`
+}

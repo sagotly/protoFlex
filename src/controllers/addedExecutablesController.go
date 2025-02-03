@@ -63,3 +63,19 @@ func (ax *AddedExecutablesController) ClickOnExecutableBtn(tunnelId int64, path 
 	}
 	return nil
 }
+
+func (ax *AddedExecutablesController) GetAllExecutables() ([]enteties.AddedExecutable, error) {
+	executables, err := ax.addedExecutableRepo.GetAllAddedExecutabless()
+	if err != nil {
+		return nil, fmt.Errorf("error while getting all executables: %w", err)
+	}
+	return executables, nil
+}
+
+func (ax *AddedExecutablesController) GetAllTunnels() ([]enteties.Tunnel, error) {
+	tunnels, err := ax.tunnelRepo.GetAllTunnels()
+	if err != nil {
+		return nil, fmt.Errorf("error while getting all tunnels: %w", err)
+	}
+	return tunnels, nil
+}

@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ProtoFlex</title>
+  <style>
+    body {
+      display: flex;
+      justify-content: space-around;
+      padding: 20px;
+      font-family: Arial, sans-serif;
+    }
+
+    .column {
+      width: 45%;
+      padding: 20px;
+      border: 1px solid #ccc;
+      border-radius: 10px;
+      background: #f9f9f9;
+    }
+
+    .modal-backdrop {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      justify-content: center;
+      align-items: center;
+    }
+
+    .modal {
+      background: white;
+      padding: 20px;
+      border-radius: 10px;
+      text-align: center;
+    }
+
+    .item {
+      padding: 10px;
+      border-bottom: 1px solid #ddd;
+    }
+  </style>
+</head>
+
+<body>
+  <!-- Левая колонка (Серверы) -->
+  <div class="column">
+    <h2>Servers</h2>
+    <div id="servers-list"></div>
+    <button id="add-server-btn">+ Add Server</button>
+  </div>
+
+  <!-- Правая колонка (Executables) -->
+  <div class="column">
+    <h2>Executables</h2>
+    <div id="executables-list"></div>
+    <button id="add-btn">+ Add Executable</button>
+  </div>
+
+  <!-- Общие модалки -->
+  <div id="connect-modal" class="modal-backdrop">
+    <div class="modal">
+      <p>Connect this executable?</p>
+      <button id="connect-confirm">Connect</button>
+      <button id="connect-cancel">Cancel</button>
+    </div>
+  </div>
+
+  <div id="add-modal" class="modal-backdrop">
+    <div class="modal">
+      <h3>Add Executable</h3>
+      <label>Path: <input type="text" id="path-input" /></label><br><br>
+      <label>Arguments: <input type="text" id="args-input" /></label><br><br>
+      <label>Tunnel: <select id="tunnel-select"></select></label><br><br>
+      <button id="add-save">Save</button>
+      <button id="add-cancel">Cancel</button>
+    </div>
+  </div>
+
+  <!-- Модалка "Добавить сервер (IP, порт, туннели)" -->
+  <div id="server-modal" class="modal-backdrop">
+    <div class="modal">
+      <h3>Add Server</h3>
+      <label>Name: <input type="text" id="server-name" /></label><br><br>
+      <label>IP: <input type="text" id="server-ip" /></label><br><br>
+      <label>Port: <input type="text" id="server-port" /></label><br><br>
+      <label>Tunnels: <input type="text" id="server-tunnels" /></label><br><br>
+      <button id="server-next">Next</button>
+      <button id="server-cancel">Cancel</button>
+    </div>
+  </div>
+
+  <div id="token-modal" class="modal-backdrop">
+    <div class="modal">
+      <h3>Enter Token</h3>
+      <input type="text" id="server-token" /><br><br>
+      <button id="token-confirm">Confirm</button>
+      <button id="token-cancel">Cancel</button>
+    </div>
+  </div>
+  <script>
+    const apiBase = "http://localhost:8080";
+
+    // Храним "выбранный" исполняемый файл, на котором нажали Connect
+    let selectedExec = null;
+
+    document.addEventListener("DOMContentLoaded", () => {
+      // Загрузим список исполнений сразу
+      loadExecutables();
+      loadServers();
+
+      document.getElementById("add-server-btn").addEventListener("click", openServerModal);
+      document.getElementById("server-next").addEventListener("click", generateToken);
+      document.getElementById("token-confirm").addEventListener("click", validateToken);
+      document.getElementById("server-cancel").addEventListener("click", closeServerModal);
+
+      // События на кнопках
+      document.getElementById("connect-confirm").addEventListener("click", doConnect);
+      document.getElementById("connect-cancel").addEventListener("click", closeConnectModal);
+
+      document.getElementById("add-btn").addEventListener("click", openAddModal);
+      document.getElementById("add-save").addEventListener("click", addExecutable);
+      document.getElementById("add-cancel").addEventListener("click", closeAddModal);
+
+      document.getElementById("token-confirm").addEventListener("click", validateToken);
+      document.getElementById("token-cancel").addEventListener("click", closeTokenModal);
+
+
+    });
+
+    // 1) Загрузить список "исполняемых файлов" и отобразить
+    function loadExecutables() {
+      fetch(apiBase + "/executables")
+        .then(res => res.json())
+        .then(data => {
+          renderExecutables(data);
+        })
+        .catch(err => console.error("Error loading executables:", err));
+    }
+
+    function loadServers() {
+      fetch(`${apiBase}/servers`)
+        .then(res => res.json())
+        .then(data => {
+          const list = document.getElementById("servers-list");
+          list.innerHTML = "";
+          data.forEach(s => {
+            const div = document.createElement("div");
+            div.className = "item";
+            div.innerHTML = `<strong>${s.Name}</strong><br>IP: ${s.Ip} | Tunnels: ${s.TunnelList}`;
+            list.appendChild(div);
+          });
+        });
+    }
+
+    function renderExecutables(execs) {
+      const listDiv = document.getElementById("executables-list");
+      listDiv.innerHTML = ""; // Очистим список перед обновлением
+
+      execs.forEach(ex => {
+        const itemDiv = document.createElement("div");
+        itemDiv.className = "item";
+
+        const title = document.createElement("h3");
+        title.textContent = ex.Path;
+        itemDiv.appendChild(title);
+
+        // Покажем Active / TunnelId
+        const desc = document.createElement("p");
+        desc.textContent = `Tunnel: ${ex.TunnelId}`;
+        itemDiv.appendChild(desc);
+
+        // Кнопка Connect
+        const connectBtn = document.createElement("button");
+        connectBtn.textContent = "Connect";
+        connectBtn.addEventListener("click", () => {
+          selectedExec = ex;
+          openConnectModal();
+        });
+        itemDiv.appendChild(connectBtn);
+
+        listDiv.appendChild(itemDiv);
+      });
+    }
+
+    function openConnectModal(loadingSpinner) {
+      document.getElementById("connect-modal").style.display = "flex"
+    }
+
+    function closeConnectModal() {
+      document.getElementById("connect-modal").style.display = "none";
+      selectedExec = null;
+    }
+
+    function doConnect() {
+      if (!selectedExec) {
+        closeConnectModal();
+        return;
+      }
+
+      fetch(apiBase + "/executables/connect", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          tunnel_id: selectedExec.TunnelId,
+          path: selectedExec.Path,
+          arguments: selectedExec.Arguments
+        })
+      })
+        .then(res => res.json())
+        .then(data => {
+          console.log("Connect response:", data);
+          closeConnectModal()
+        })
+        .catch(err => {
+          console.error("Error connecting:", err);
+          alert("Error connecting");
+        })
+    }
+    // 2) Connect
+    function openConnectModal() {
+      document.getElementById("connect-modal").style.display = "flex";
+    }
+    function closeConnectModal() {
+      document.getElementById("connect-modal").style.display = "none";
+      selectedExec = null;
+    }
+    // 3) Добавить Executable
+    function openAddModal() {
+      // Сначала загрузим список туннелей (GET /tunnels)
+      fetch(apiBase + "/tunnels")
+        .then(res => res.json())
+        .then(tunnels => {
+          const select = document.getElementById("tunnel-select");
+          select.innerHTML = "";
+          tunnels.forEach(t => {
+            const opt = document.createElement("option");
+            opt.value = t.InterfaceName; // или t.ID, если хотите
+            opt.textContent = t.InterfaceName;
+            select.appendChild(opt);
+          });
+          // теперь покажем саму модалку
+          document.getElementById("add-modal").style.display = "flex";
+        })
+        .catch(err => console.error("Error loading tunnels:", err));
+    }
+    function closeAddModal() {
+      document.getElementById("add-modal").style.display = "none";
+    }
+
+    function addExecutable() {
+      const pathVal = document.getElementById("path-input").value;
+      const argsVal = document.getElementById("args-input").value;
+      const tunVal = document.getElementById("tunnel-select").value;
+
+      fetch(apiBase + "/executables", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          path: pathVal,
+          arguments: argsVal,
+          tunnel_id: tunVal
+        })
+      })
+        .then(res => res.json())
+        .then(data => {
+          console.log("Add response:", data);
+          alert(data.message || "Added successfully");
+          closeAddModal();
+          loadExecutables();
+        })
+        .catch(err => {
+          console.error("Error adding executable:", err);
+          closeAddModal();
+        });
+    }
+    function openServerModal() {
+      document.getElementById("server-modal").style.display = "flex";
+    }
+
+    function closeServerModal() {
+      document.getElementById("server-modal").style.display = "none";
+    }
+
+    function generateToken() {
+      serverData = {
+        name: document.getElementById("server-name").value,
+        ip: document.getElementById("server-ip").value,
+        port: document.getElementById("server-port").value,
+        tunnel_list: document.getElementById("server-tunnels").value
+      };
+
+      fetch(`${apiBase}/connections/generate-token`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ip: serverData.ip, port: serverData.port })
+      }).then(() => {
+        document.getElementById("server-modal").style.display = "none";
+        document.getElementById("token-modal").style.display = "flex";
+      });
+    }
+
+    function validateToken() {
+      const token = document.getElementById("server-token").value;
+
+      fetch(`${apiBase}/connections/validate-token`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token: token, ip: serverData.ip, port: serverData.port })
+      })
+        .then(res => {
+          if (res.status === 200) {
+            console.log("Token is valid");
+            return fetch(`${apiBase}/servers`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ ...serverData, token })
+            })
+              .then(response => response.json())
+              .then(data => {
+                if (data.error === "tunnel already exists") {
+                  alert("Tunnel already exists");
+                  throw new Error("Tunnel already exists");
+                } else {
+                  loadServers();
+                }
+              });
+          } else {
+            throw new Error("Invalid token");
+          }
+        })
+        .then(() => {
+          document.getElementById("token-modal").style.display = "none";
+          loadServers();
+        })
+        .catch(err => alert(err.message));
+    }
+
+    function closeTokenModal() { document.getElementById("token-modal").style.display = "none"; }
+  </script>
+</body>
+
+</html>
