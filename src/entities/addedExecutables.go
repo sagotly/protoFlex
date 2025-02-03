@@ -6,6 +6,7 @@ type AddedExecutable struct {
 	Path      string `db:"path"`
 	Arguments string `db:"arguments"`
 	Active    bool   `db:"active"`
+	Interface string
 }
 
 type AddExecutableRequest struct {

@@ -69,6 +69,14 @@ func (ax *AddedExecutablesController) GetAllExecutables() ([]enteties.AddedExecu
 	if err != nil {
 		return nil, fmt.Errorf("error while getting all executables: %w", err)
 	}
+	for i := range executables {
+		tunnel, err := ax.tunnelRepo.GetTunnelById(executables[i].TunnelId)
+		if err != nil {
+			return nil, fmt.Errorf("error while getting tunnel by id: %w", err)
+		}
+		executables[i].Interface = tunnel.InterfaceName
+	}
+	fmt.Println("executables: ", executables)
 	return executables, nil
 }
 

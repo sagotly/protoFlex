@@ -1,10 +1,12 @@
-package controllers_test
+package tests
 
 import (
 	"database/sql"
 	"fmt"
 	"os"
+	"runtime"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/suite"
 
@@ -17,6 +19,9 @@ import (
 
 type ServerViewControllerTestSuite struct {
 	suite.Suite
+
+	startTime time.Time
+
 	Db                   *sql.DB
 	ServerRepo           *repo.ServerRepo
 	TunnelRepo           *repo.TunnelRepo
@@ -24,6 +29,10 @@ type ServerViewControllerTestSuite struct {
 
 	ServerViewController *controllers.ServerViewController
 	AddedExecCont        *controllers.AddedExecutablesController
+}
+
+func (suite *ServerViewControllerTestSuite) SetupSuite() {
+	suite.startTime = time.Now()
 }
 
 func (suite *ServerViewControllerTestSuite) SetupTest() {
@@ -46,6 +55,64 @@ func (suite *ServerViewControllerTestSuite) SetupTest() {
 func (suite *ServerViewControllerTestSuite) TearDownTest() {
 	suite.Require().NoError(suite.Db.Close())
 	suite.Require().NoError(os.Remove("../../test.db"))
+}
+
+func (suite *ServerViewControllerTestSuite) TearDownSuite() {
+	// Вычисляем время выполнения тестов
+	duration := time.Since(suite.startTime)
+
+	// Читаем статистику памяти
+	var m runtime.MemStats
+	runtime.ReadMemStats(&m)
+
+	// Дополнительные метрики:
+	// 1. Общее количество выделенной памяти (TotalAlloc)
+	// 2. Общая системная память, выделенная для Go (Sys)
+	// 3. Количество вызовов malloc (Mallocs)
+	// 4. Количество вызовов free (Frees)
+	// 5. Количество сборок мусора (NumGC)
+	// 6. Число запущенных горутин
+	numGoroutine := runtime.NumGoroutine()
+
+	// Создаем файл для записи статистики, например "test_stats.txt"
+	file, err := os.Create("test_stats.txt")
+	if err != nil {
+		suite.T().Fatalf("Не удалось создать файл статистики: %v", err)
+	}
+	defer file.Close()
+
+	// Формируем содержимое файла с 8 колонками:
+	// 1. Время выполнения тестов
+	// 2. Использовано памяти (Alloc)
+	// 3. Общее количество выделенной памяти (TotalAlloc)
+	// 4. Системная память (Sys)
+	// 5. Количество вызовов malloc (Mallocs)
+	// 6. Количество вызовов free (Frees)
+	// 7. Число сборок мусора (NumGC)
+	// 8. Число запущенных горутин
+	content := fmt.Sprintf(
+		"Время выполнения тестов: %s\n"+
+			"Использовано памяти (Alloc): %d байт\n"+
+			"Общее количество выделенной памяти (TotalAlloc): %d байт\n"+
+			"Системная память (Sys): %d байт\n"+
+			"Количество вызовов malloc (Mallocs): %d\n"+
+			"Количество вызовов free (Frees): %d\n"+
+			"Число сборок мусора (NumGC): %d\n"+
+			"Число запущенных горутин: %d\n",
+		duration,
+		m.Alloc,
+		m.TotalAlloc,
+		m.Sys,
+		m.Mallocs,
+		m.Frees,
+		m.NumGC,
+		numGoroutine,
+	)
+
+	_, err = file.WriteString(content)
+	if err != nil {
+		suite.T().Fatalf("Не удалось записать статистику в файл: %v", err)
+	}
 }
 
 func (suite *ServerViewControllerTestSuite) TestCreateNewServerBtn() {

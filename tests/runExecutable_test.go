@@ -1,4 +1,4 @@
-package system_scripts_test
+package tests
 
 import (
 	"os"
