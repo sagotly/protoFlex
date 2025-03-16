@@ -5,9 +5,8 @@ import (
 	"fmt"
 	"log"
 
-	_ "github.com/mattn/go-sqlite3"
-
 	"github.com/gin-gonic/gin"
+	_ "github.com/mattn/go-sqlite3"
 	"github.com/sagotly/protoFlex.git/src/api"
 	"github.com/sagotly/protoFlex.git/src/client"
 	"github.com/sagotly/protoFlex.git/src/controllers"
@@ -15,16 +14,16 @@ import (
 	"github.com/sagotly/protoFlex.git/src/utils"
 )
 
-// Executable - структура для хранения информации о "исполняемом файле"
+// Executable - structure to store information about the executable file
 type Executable struct {
-	ID        int      `json:"id"`        // Уникальный идентификатор
-	Path      string   `json:"path"`      // Путь к исполняемому файлу
-	Arguments []string `json:"arguments"` // Аргументы запуска
-	TunnelId  string   `json:"tunnel_id"` // ID (или имя) туннеля
-	Active    bool     `json:"active"`    // Флаг, подключено ли исполнение
+	ID        int      `json:"id"`        // Unique identifier
+	Path      string   `json:"path"`      // Path to the executable file
+	Arguments []string `json:"arguments"` // Launch arguments
+	TunnelId  string   `json:"tunnel_id"` // ID (or name) of the tunnel
+	Active    bool     `json:"active"`    // Flag indicating whether the execution is connected
 }
 
-// Tunnel - структура для туннелей
+// Tunnel - structure for tunnels
 type Tunnel struct {
 	ID            int    `json:"id"`
 	InterfaceName string `json:"interface_name"`
@@ -54,47 +53,48 @@ func main() {
 	tokenApi := api.NewTokenApi(tokenController)
 	executableApi := api.NewExecutableApi(addedExecutablesController)
 	serverApi := api.NewServerApi(serverViewController)
+
 	r := gin.Default()
 
-	// Указываем папку с HTML-шаблонами
+	// Specify the folder with HTML templates
 	r.LoadHTMLFiles("src/templates/index.html", "src/templates/server.html")
 
-	// Обработчик для главной страницы
+	// Handler for the main page
 	r.GET("/", func(c *gin.Context) {
-		// Рендерим `index.html`
+		// Render `index.html`
 		c.HTML(200, "index.html", gin.H{
 			"title": "Welcome to Main Page",
 		})
 	})
-	// Обработчик для главной страницы
+	// Handler for the server page
 	r.GET("/s", func(c *gin.Context) {
-		// Рендерим `index.html`
+		// Render `server.html`
 		c.HTML(200, "server.html", gin.H{
-			"title": "Welcome to Main Page",
+			"title": "Welcome to Server Page",
 		})
 	})
-	// 1. Получить список всех Executables
+	// 1. Get the list of all Executables
 	r.GET("/executables", executableApi.GetExecutables)
 
-	// 2. Добавить Executable
+	// 2. Add an Executable
 	r.POST("/executables", executableApi.AddExecutable)
 
-	// 3. Подключение (Connect) к Executable
+	// 3. Connect to an Executable
 	r.POST("/executables/connect", executableApi.ConnectExecutable)
 
-	// 4. Получить список туннелей
+	// 4. Get the list of tunnels
 	r.GET("/tunnels", executableApi.GetAllTunnels)
 
-	// Получить список серверов
+	// Get the list of servers
 	r.GET("/servers", serverApi.GetServers)
 
-	// Генерация токена
+	// Generate a token
 	r.POST("/connections/generate-token", tokenApi.GenerateToken)
 
-	// Проверка токена
+	// Validate a token
 	r.POST("/connections/validate-token", tokenApi.ValidateToken)
 
-	// Добавить сервер
+	// Add a server
 	r.POST("/servers", serverApi.AddServer)
 
 	r.Run(":8080")
