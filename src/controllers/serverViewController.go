@@ -1,7 +1,6 @@
 package controllers
 
 import (
-	"fmt"
 	"log"
 
 	enteties "github.com/sagotly/protoFlex.git/src/entities"
@@ -27,13 +26,11 @@ func (n *ServerViewController) CreateNewServerBtn(serverName string, serverIp st
 		Ip:         serverIp,
 		TunnelList: interface_name,
 	}
-	tunnel, exists, err := n.tunnelRepo.GetTunnelByInterfaceName(interface_name)
+	_, exists, err := n.tunnelRepo.GetTunnelByInterfaceName(interface_name)
 	if err != nil {
 		log.Println("Error creating server:", err)
-	} else if exists {
-		log.Println("Error creating server: tunnel already exists")
-		return fmt.Errorf("tunnel already exists")
 	}
+
 	id, err := n.serverRepo.CreateServer(server)
 	if err != nil {
 		log.Println("Error creating server:", err)
@@ -45,14 +42,16 @@ func (n *ServerViewController) CreateNewServerBtn(serverName string, serverIp st
 		return err
 	}
 
-	tunnel = enteties.Tunnel{
+	tunnel := enteties.Tunnel{
 		ServerId:      id,
 		InterfaceName: interface_name,
 	}
 
-	err = n.tunnelRepo.CreateTunnel(tunnel)
-	if err != nil {
-		return err
+	if !exists {
+		err = n.tunnelRepo.CreateTunnel(tunnel)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }

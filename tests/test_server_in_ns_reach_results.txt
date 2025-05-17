@@ -1,0 +1,16 @@
+=== TestServerBinaryConnection results ===
+
+Namespace: connection error (as expected): dial tcp 127.0.0.1:8080: connect: connection refused
+
+Host:
+  Status Code: 200
+  Body: "OK\n"
+
+Metrics:
+  Test Duration: 698.621476ms
+  Memory Alloc: 1346776 bytes
+  TotalAlloc: 1346776 bytes
+  Sys: 8606984 bytes
+  Mallocs: 10973
+  Frees: 1371
+  NumGC: 0

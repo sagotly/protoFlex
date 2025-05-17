@@ -26,7 +26,7 @@ func NewAddedExcecutablesController(tunnelRepo *repo.TunnelRepo, serverRepo *rep
 func (ax *AddedExecutablesController) AddExecutableBtn(executablePath string, executableArgs []string, interfaceName string) error {
 	tunnels, err := ax.tunnelRepo.GetAllTunnels()
 	if err != nil {
-		return fmt.Errorf("Error getting tunnels: %w", err)
+		return fmt.Errorf("error getting tunnels: %w", err)
 	}
 
 	wantedTunnel := enteties.Tunnel{}

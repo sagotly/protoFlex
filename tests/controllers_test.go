@@ -3,7 +3,11 @@ package tests
 import (
 	"database/sql"
 	"fmt"
+	"io/ioutil"
+	"net"
+	"net/http"
 	"os"
+	"os/exec"
 	"runtime"
 	"testing"
 	"time"
@@ -12,7 +16,6 @@ import (
 
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/sagotly/protoFlex.git/src/controllers"
-	enteties "github.com/sagotly/protoFlex.git/src/entities"
 	"github.com/sagotly/protoFlex.git/src/repo"
 	"github.com/sagotly/protoFlex.git/src/utils"
 )
@@ -142,33 +145,143 @@ func (suite *ServerViewControllerTestSuite) TestCreateNewServerBtn() {
 }
 
 func (suite *ServerViewControllerTestSuite) TestAddExecutableBtn() {
-	// Define test data
-	executablePath := "/usr/bin/test-exec"
-	arguments := []string{"--arg1", "--arg2"}
-	tunnelInterface := "wg0"
+	// Define test data for each server
+	serverName := "Test Server"
+	serverIp := "192.168.1.1"
+	interfaceName := "wg0"
 
-	// Ensure the test environment has at least one tunnel to link the executable
-	server := enteties.Server{Ip: "127.0.0.1", Name: "Test Server", TunnelList: "[]"}
-	id, err := suite.ServerRepo.CreateServer(server)
+	// Create a new server
+	err := suite.ServerViewController.CreateNewServerBtn(serverName, serverIp, interfaceName)
 	suite.Require().NoError(err)
 
-	tunnel := enteties.Tunnel{ServerId: id, InterfaceName: tunnelInterface}
-	err = suite.TunnelRepo.CreateTunnel(tunnel)
+	// Create a temporary file containing a simple shell script
+	tmpFile, err := os.CreateTemp("", "hello-world-%d-*.sh")
 	suite.Require().NoError(err)
 
-	// Call the function being tested
-	err = suite.AddedExecCont.AddExecutableBtn(executablePath, arguments, tunnelInterface)
+	scriptContent := "#!/bin/bash\necho Hello World\n"
+	_, err = tmpFile.Write([]byte(scriptContent))
 	suite.Require().NoError(err)
 
-	// Verify that the executable was added
-	executables, err := suite.AddedExecutablesRepo.GetAllAddedExecutabless()
+	// Close the file and make it executable
+	err = tmpFile.Close()
 	suite.Require().NoError(err)
-	suite.Require().Len(executables, 1)
+	err = os.Chmod(tmpFile.Name(), 0755)
+	suite.Require().NoError(err)
 
-	// Check the details of the added executable
-	// suite.Equal(executablePath, executables[0].Path)
-	// suite.Equal(tunnelInterface, executables[0].TunnelId)
-	// suite.ElementsMatch(arguments, executables[0].Arguments)
+	executablePath := tmpFile.Name()
+	arguments := []string{}
+
+	// Add the executable to the server
+	err = suite.AddedExecCont.AddExecutableBtn(executablePath, arguments, interfaceName)
+	suite.Require().NoError(err)
+
+	err = suite.AddedExecCont.ClickOnExecutableBtn(1, executablePath, "")
+	suite.Require().NoError(err)
+	cmdStart := time.Now()
+	cmd := exec.Command("ip", "link", "delete", "veth_wg_0")
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	err = cmd.Run()
+	suite.Require().NoError(err)
+	suite.startTime = suite.startTime.Add(time.Since(cmdStart))
+}
+
+func (suite *ServerViewControllerTestSuite) TestServerBinaryConnection() {
+	// ————— START: засечём начало теста
+	testStart := time.Now()
+
+	// —— Arrange
+	serverName := "Test Server"
+	serverIP := "192.168.1.1"
+	interfaceName := "wg0"
+	executablePath := "./test_materials/protoflex-server-test"
+
+	suite.Require().NoError(
+		suite.ServerViewController.CreateNewServerBtn(serverName, serverIP, interfaceName),
+		"failed to add server",
+	)
+	suite.Require().NoError(
+		suite.AddedExecCont.AddExecutableBtn(executablePath, []string{}, interfaceName),
+		"failed to register executable",
+	)
+
+	// —— Act #1: запускаем в namespace
+	suite.Require().NoError(
+		suite.AddedExecCont.ClickOnExecutableBtn(1, executablePath, ""),
+		"ClickOnExecutableBtn should start the server binary inside namespace",
+	)
+
+	// ждём мильсекунду и пытаемся подключиться — тут ожидание падения
+	time.Sleep(100 * time.Millisecond)
+	nsConnErr := error(nil)
+	nsConn, err := net.DialTimeout("tcp", "localhost:8080", 100*time.Millisecond)
+	if err != nil {
+		nsConnErr = err
+	} else {
+		nsConn.Close()
+	}
+
+	// —— Act #2: запускаем на хосте
+	cmd := exec.Command(executablePath)
+	suite.Require().NoError(cmd.Start(), "failed to start server binary on host")
+	defer func() {
+		_ = cmd.Process.Kill()
+		_ = cmd.Wait()
+	}()
+
+	// ждём, пока порт откроется
+	var hostRespBody string
+	var hostStatusCode int
+	deadline := time.Now().Add(5 * time.Second)
+	for time.Now().Before(deadline) {
+		resp, err := http.Get("http://localhost:8080")
+		if err == nil {
+			defer resp.Body.Close()
+			body, _ := ioutil.ReadAll(resp.Body)
+			hostRespBody = string(body)
+			hostStatusCode = resp.StatusCode
+			break
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+	suite.Require().NotZero(hostStatusCode, "server did not respond on host within timeout")
+
+	// ————— END: замеряем продолжительность и память
+	duration := time.Since(testStart)
+	var m runtime.MemStats
+	runtime.ReadMemStats(&m)
+
+	// ————— Записываем всё в файл
+	f, err := os.Create("test_server_in_ns_reach_results.txt")
+	suite.Require().NoError(err, "cannot create results file")
+	defer f.Close()
+
+	fmt.Fprintf(f, "=== TestServerBinaryConnection results ===\n\n")
+	// namespace
+	if nsConnErr != nil {
+		fmt.Fprintf(f, "Namespace: connection error (as expected): %v\n", nsConnErr)
+	} else {
+		fmt.Fprintf(f, "Namespace: unexpectedly connected!\n")
+	}
+	// host
+	fmt.Fprintf(f, "\nHost:\n")
+	fmt.Fprintf(f, "  Status Code: %d\n", hostStatusCode)
+	fmt.Fprintf(f, "  Body: %q\n", hostRespBody)
+
+	// metrics
+	fmt.Fprintf(f, "\nMetrics:\n")
+	fmt.Fprintf(f, "  Test Duration: %s\n", duration)
+	fmt.Fprintf(f, "  Memory Alloc: %d bytes\n", m.Alloc)
+	fmt.Fprintf(f, "  TotalAlloc: %d bytes\n", m.TotalAlloc)
+	fmt.Fprintf(f, "  Sys: %d bytes\n", m.Sys)
+	fmt.Fprintf(f, "  Mallocs: %d\n", m.Mallocs)
+	fmt.Fprintf(f, "  Frees: %d\n", m.Frees)
+	fmt.Fprintf(f, "  NumGC: %d\n", m.NumGC)
+
+	// закрываем соединения, если есть
+	if nsConn != nil {
+		_ = nsConn.Close()
+	}
 }
 
 func TestServerViewControllerTestSuite(t *testing.T) {

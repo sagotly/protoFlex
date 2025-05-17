@@ -93,7 +93,6 @@ func main() {
 
 	// Validate a token
 	r.POST("/connections/validate-token", tokenApi.ValidateToken)
-
 	// Add a server
 	r.POST("/servers", serverApi.AddServer)
 
